@@ -1,0 +1,18 @@
+Enter the map from valve name to pin numbers in file config.txt
+in this format:
+
+VALVE1_NAME pin1 pin2 ...
+VALVE2_NAME pin1 pin2 ...
+...
+
+All empty lines are ignored
+ERROR when getPins is called on valve name that isn't contained in config.txt
+All non-numeric pin values are ignored
+If multiple valve names are listed, then all corresponding pins are also set to mode
+
+Instructions:
+1. Edit config.txt with the correct format for launch pins
+2. config.txt is also used to run Python script in crontab
+3. In "log" directory, add a new log file named "log.txt"
+    (if this file exists, new output is appended)
+    (if no such file exists, file is attempted to be created)
