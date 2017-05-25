@@ -6,5 +6,6 @@ OBJS= *.c
 all:
 	$(CC) $(CFLAGS) $(OBJS) -o $(EXEC)
 	chmod +x $(EXEC)
-install:
 	sudo mv $(EXEC) /usr/local/bin/
+clean:
+	rm -r $(EXEC)*

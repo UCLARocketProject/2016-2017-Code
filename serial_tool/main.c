@@ -1,74 +1,60 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <fcntl.h>   /* File control definitions */
-#include <errno.h>   /* Error number definitions */
-#include <termios.h> /* POSIX terminal control definitions */
-#include <signal.h>
-#include <sys/time.h>
-#include <time.h>
-#include <poll.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/types.h>
-#include <mysql/mysql.h>
-#include <stdint.h>
-#include <pthread.h>
-
 #include "serial_handler.h"
+#include "main.h"
 
-volatile int running = 1;
-//char model[1024] = "{t:1,data:{rel_t:0,a0:0,a1:0,a2:0,a3:0,a4:0,a5:0}}";
-char model[1024] = "{rel_t:1,a0:0,a1:0,a2:0,a3:0,a4:0,a5:0}";
+volatile int running = 1; //very much global
+volatile int verbose = 1; //all, must be global
+//char model[1024] = "{rel_t:1,a0:0,a1:0,a2:0,a3:0,a4:0,a5:0}";
+char model[1024] = "rel_t,a0,a1,a2,a3,a4,a5";
 char mysql_addr[256] = "127.0.0.1";
 char mysql_login[256] = "root";
 char mysql_pswd[256] = "pinetree";
 char mysql_table[256] = "pins";
 char mysql_db[256] = "testing";
-char path_to_log_dir[4096];
-
-MYSQL* con = NULL;
-
-int verbose = 1;
-
-FILE* log_fd;
-
-int str_list_size;
-
+char path_to_log_dir[4096]; //used by main and data, could pass, but nah
 soc_node* head_soc_list = NULL;
 soc_node* tail_soc_list = NULL;
+str_node* head_str_list = NULL;
+str_node* tail_str_list = NULL;
+str_node* head_str_list2 = NULL;
+str_node* tail_str_list2 = NULL;
+int32_t str_list_size = 0;
+int32_t str_list_size2 = 0;
+uint64_t last_report; //main and data
+
+char serial_path[2048];
+int serial_speed;
 
 int main(int argc, char* argv[]) {
-
-  str_node* head_str_list = NULL;
-  str_node* tail_str_list = NULL;
-  head_str_list = add_str_node(head_str_list, "dummy");
+  /* ------------------------------------------------------------------------*/
+  head_str_list = add_str_node(head_str_list, "dummy", 0.0);
   tail_str_list = head_str_list;
-  str_list_size = 1;
+  str_list_size++;
+  head_str_list2 = add_str_node(head_str_list2, "dummy", 0.0);
+  tail_str_list2 = head_str_list2;
+  str_list_size2++;
+  /* ------------------------------------------------------------------------*/
 
 
-  char serial_path[2048];
+  /* ------------------------------------------------------------------------*/
   strncpy(serial_path, PORT_NAME, sizeof(serial_path));
   serial_path[sizeof(serial_path)-1] = 0;
+  serial_speed = PORT_SPEED;
+  /* ------------------------------------------------------------------------*/
 
-  int serial_speed = PORT_SPEED;
 
+  /* ------------------------------------------------------------------------*/
   strcpy(path_to_log_dir, "./");
+  /* ------------------------------------------------------------------------*/
 
-  log_fd = NULL;
 
+  /* ------------------------------------------------------------------------*/
   int use_host = 0;
   char host[2048];
   int port = 8888;
+  /* ------------------------------------------------------------------------*/
 
-  char* temp_model = (char*)malloc(sizeof(char)*512);
-  strncpy(temp_model, model, 512);
-  temp_model[512-1] = 0;
-  sprintf(model, "{t:0,data:%s}", temp_model);
-  free(temp_model);
 
+  /* ------------------------------------------------------------------------*/
   /* check for help message flag */
   if (argc > 1) {
     int i;
@@ -128,48 +114,43 @@ int main(int argc, char* argv[]) {
         }
       } else if (strcmp(argv[i], "-m") == 0) {
         if (i + 1 < argc) {
-          char** keys = NULL;
-          char** values = NULL;
-          int n = parseJSON(&keys, &values, argv[i+1]);
+          char** fields;
+          int n = parse_CSV(argv[i+1], &fields);
           if (n > 0) {
-            //strncpy(model, argv[i+1], 1024);
-            if (strlen(argv[i+1]) >= 512)
-              argv[i+1][512] = 0;
-            sprintf(model, "{t:0,data:%s}", argv[i+1]);
+            strncpy(model, argv[i+1], 1024);
+            model[1024-1] = 0;
           }
-          model[1024-1] = 0;
-          free_JSON_array(keys, n);
-          free_JSON_array(values, n);
+          free_CSV_fields(fields, n);
           i++;
         }
       } else if (strcmp(argv[i], "--mysql-password") == 0) {
         if (i + 1 < argc) {
           strncpy(mysql_pswd, argv[i+1], 256);
-          model[256-1] = 0;
+          mysql_pswd[256-1] = 0;
           i++;
         }
       } else if (strcmp(argv[i], "--mysql-login") == 0) {
         if (i + 1 < argc) {
           strncpy(mysql_login, argv[i+1], 256);
-          model[256-1] = 0;
+          mysql_login[256-1] = 0;
           i++;
         }
       } else if (strcmp(argv[i], "--mysql-database") == 0) {
         if (i + 1 < argc) {
           strncpy(mysql_db, argv[i+1], 256);
-          model[256-1] = 0;
+          mysql_db[256-1] = 0;
           i++;
         }
       } else if (strcmp(argv[i], "--mysql-table") == 0) {
         if (i + 1 < argc) {
           strncpy(mysql_table, argv[i+1], 256);
-          model[256-1] = 0;
+          mysql_table[256-1] = 0;
           i++;
         }
       } else if (strcmp(argv[i], "--mysql-address") == 0) {
         if (i + 1 < argc) {
           strncpy(mysql_addr, argv[i+1], 256);
-          model[256-1] = 0;
+          mysql_addr[256-1] = 0;
           i++;
         }
       } else {
@@ -177,95 +158,183 @@ int main(int argc, char* argv[]) {
       }
     }
   }
-
-  int dummy_port = 8888;
-  char dummy_host[] = "192.168.1.17";
-  tail_soc_list = add_soc_node(tail_soc_list, dummy_host, dummy_port);
-  head_soc_list = tail_soc_list;
+  /* ------------------------------------------------------------------------*/
 
 
+  /* ------------------------------------------------------------------------*/
+  change_port_permissions(serial_path);
+  /* ------------------------------------------------------------------------*/
+
+
+  /* ------------------------------------------------------------------------*/
   /* allow for graceful quitting */
-  signal(SIGTERM, sighandler);
-  signal(SIGABRT, sighandler);
+  //signal(SIGTERM, sighandler);
+  //signal(SIGABRT, sighandler);
   signal(SIGINT, sighandler);
+  /* ------------------------------------------------------------------------*/
 
+
+  /* ------------------------------------------------------------------------*/
   /* create connection to cmd line specified host */
   // struct sockaddr_in servaddr;
-  if (use_host)
-    tail_soc_list = add_soc_node(tail_soc_list, host, port);
+  int dummy_port = 8888;
+  char dummy_host[] = "dummy";
+  tail_soc_list = add_soc_node(tail_soc_list, dummy_host, dummy_port);
+  head_soc_list = tail_soc_list;
+  if (use_host) tail_soc_list = add_soc_node(tail_soc_list, host, port);
+  /* ------------------------------------------------------------------------*/
 
-  if (verbose)
-    printf("##Serial pipe \"%s\" will be used with a speed of %i\n", serial_path, serial_speed);
-  if (verbose)
-    printf("##Using model: \"%s\"\n", model);
 
-  /* start serial reception */
-  int fd = open_port(serial_path, serial_speed);
+  /* ------------------------------------------------------------------------*/
+  if (verbose) printf("Serial pipe \"%s\" will be used with a speed of %i\n", serial_path, serial_speed);
+  if (verbose) printf("Using model: \"%s\"\n", model);
+  /* ------------------------------------------------------------------------*/
 
-  char line[M];
-  char buffer[N<<2];
-  size_t buff_len = 0;
-  line[0] = 0;
-  uint64_t bytes_written = 0;
-  //unsigned writing_occurred = 0;
-  //int r = 0;
+
+  /* ------------------------------------------------------------------------*/
   pthread_t mysql_handler;
-  if (pthread_create(&mysql_handler, NULL, handle_data, (void*)head_str_list)) {
-    if (verbose)
-      printf("!!Error creating the data handling thread\n");
-    return 5;
+  last_report = millis();
+  if (pthread_create(&mysql_handler, NULL, handle_data, NULL)) {
+    pthread_detach(mysql_handler);
+    if (verbose) printf("Error creating the data handling thread\n");
+    exit(5);
   }
-  while (running) {
-    /* attempt to open socket when closed */
-    if (fd == -1 || write(fd, "", 0) < 0) { //socket is closed 
-      close(fd);
-      fd = open_port(serial_path, serial_speed);
-      if (verbose)
-        printf("##Re-opening port\n");
-      delay(100);
-      /* read data from open socket */
-    } else {
-      wait_on_data(fd, 1000);
-      int read_bytes = read(fd, line, M-1);
-      if (read_bytes > 0) {
-        memcpy(buffer+buff_len, line, read_bytes);
-        buff_len += read_bytes;
-        if (buff_len > N<<2)
-          buff_len = N<<2;
-        buffer[buff_len] = 0;
-        int j = parse_newline_and_log(log_fd, buffer, buff_len, head_soc_list, &tail_str_list);
-        //r++;
-        //if (r % 3 == 0)
-        //  head_str_list = handle_str_list(head_str_list);
-        memmove(buffer, buffer+j, buff_len - j);
-        buff_len = buff_len - j;
-        buffer[buff_len] = 0;
-        bytes_written += j;
+  pthread_t serial_handler;
+  if (pthread_create(&serial_handler, NULL, obtain_data, NULL)) {
+    pthread_detach(serial_handler);
+    if (verbose) printf("Error creating the data obtaining thread\n");
+    exit(6);
+  }
+  pthread_t server_handler;
+  if (pthread_create(&server_handler, NULL, server, NULL)) {
+    pthread_detach(server_handler);
+    if (verbose) printf("Error creating the server thread\n");
+    exit(7);
+  }
+  /* ------------------------------------------------------------------------*/
 
-        line[read_bytes] = 0;
-        if (verbose) {
-          //printf("%s", line);
-          fflush(stdout);
-        }
-        //writing_occurred = 1;
-      } else if (read_bytes == 0) {
-        // WEIRD CASE
-      } else {
-        // NO DATA CASE 
+
+  /* ------------------------------------------------------------------------*/
+  while (running) {
+    uint64_t data_thread_frozen = ((millis() - last_report) > 5000);
+    if (data_thread_frozen) {
+      delay(1);
+      data_thread_frozen = ((millis() - last_report) > 5000);
+    }
+    if (data_thread_frozen) {
+      if (verbose) printf("Check not fine\n");
+      pthread_kill(mysql_handler, SIGUSR1);
+      last_report = millis();
+      if (pthread_create(&mysql_handler, NULL, handle_data, NULL)) {
+        pthread_detach(mysql_handler);
+        if (verbose) printf("!!Error: creating the data handling thread failed\n");
+        exit(5);
       }
     }
+    delay(100);
   }
-  if (verbose)
-    printf("\nClosing...\n");
-  if (pthread_join(mysql_handler, NULL)) {
-    if (verbose)
-      printf("!!Error joining thread\n");
-  }
-  if (log_fd != NULL)
-    fclose(log_fd);
+  /* ------------------------------------------------------------------------*/
+
+
+  /* ------------------------------------------------------------------------*/
+  if (verbose) printf("\nClosing...\n");
+  delay(100);
+
+  if (millis() > last_report) pthread_kill(mysql_handler, SIGUSR1);
+
+  printf("Closing pipe\n");
   close(fd);
+
+  printf("Freeing socket nodes\n");
   free_soc_nodes(head_soc_list);
-  free_str_nodes(head_str_list);
-  return 0;
+  /* ------------------------------------------------------------------------*/
+
+  exit(0);
 }
 
+soc_node* add_soc_node(soc_node* soc, char* ip, int port) {
+  soc_node* soc_curr = (soc_node*)malloc(sizeof(soc_node)); 
+  soc_curr->next = NULL;
+  if (soc != NULL)
+    soc->next = soc_curr;
+
+  if (verbose && soc != NULL)
+    printf("Sending UDP packets will occur to %s on port %i\n", ip, port);
+  struct hostent* hp; 
+
+  if (strcmp(ip, "dummy") == 0) return soc_curr;
+
+  memset((char*)&(soc_curr->servaddr), 0, sizeof(soc_curr->servaddr));
+  (soc_curr->servaddr).sin_family = AF_INET;
+  (soc_curr->servaddr).sin_port = htons(port);
+  hp = gethostbyname(ip);
+  if (!hp) {
+    if (verbose)
+      printf("Could not have obtained host address of %s:%i!\n", ip, port);
+    if (soc != NULL)
+      soc->next = NULL;
+    free(soc_curr);
+    return NULL; 
+  }
+  memcpy((void*)&(soc_curr->servaddr).sin_addr, hp->h_addr_list[0], hp->h_length);
+  soc_curr->fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+  return soc_curr;
+}
+
+void free_soc_nodes(soc_node* soc) {
+  soc_node* last_node;
+  soc_node* curr_node;
+  curr_node = soc;
+  while (curr_node != NULL) {
+    last_node = curr_node; 
+    curr_node = curr_node->next;
+    close(last_node->fd);
+    free(last_node);
+  }
+}
+
+void print_help_message() {
+  char message[] = "\nThe following options are supported:\n" \
+"-h,--help          prints this help message\n" \
+"-H                 specify host to which logged data is sent using UDP\n" \
+"                   UDP transmissions only occur when host is specified\n" \
+"                   host defaults to \"localhost\"\n" \
+"-p                 specify port to which data should be sent using UDP\n"
+"                   UDP transmissions only occur when host or port \n" \
+"                   is specified port defaults to \"8888\"\n" \
+"-F,-l             specifies the file to which logging should occur\n" \
+"-s                 silent mode, no output is produced\n" \
+"-P                 specify serial pipe to be used\n" \
+"                   only one pipe per process is currently supported\n" \
+"-S                 specify the speed of serial\n" \
+"-m                 specify model JSON string for MySql parsing\n" \
+"--mysql-login      specify mysql login for the server\n" \
+"--mysql-password   specify mysql password for the server\n" \
+"--mysql-database   specify mysql database\n" \
+"--mysql-table      specify mysql table for data\n" \
+"--mysql-address    specify mysql addr for the server\n\n" \
+"Notes:\n" \
+"Serial pipes of USB ports are only readable on root by default, make sure" \
+"to change their permissions first or execute this program as root\n\n"
+"Examples:\n" \
+"sudo ./exec -P \"/dev/ttyACM0\" -l \"$HOME/Desktop\" --mysql-database" \
+" \"testing\"\n\n" \
+"Press Ctrl + C to terminate this program safely\n";
+  puts(message);
+}
+
+void sighandler(int signum) {
+  running = 0;
+}
+
+void change_port_permissions(char* serial_path) {
+  if (verbose) {
+    printf("Changing permissions on port %s to 766.\n", serial_path);
+    printf("Get ready to input your password\n");
+  }
+  char* cmd = (char*)malloc(sizeof(char)*(strlen(serial_path)+64));
+  sprintf(cmd, "sudo chmod 766 %s", serial_path);
+  system(cmd);
+  free(cmd);
+}

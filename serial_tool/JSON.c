@@ -10,6 +10,9 @@ int parseJSON(char*** keys, char*** values, const char* JSON_org) {
 
   uint32_t i = 0;
   uint32_t len = strlen(JSON_org);
+  if (len == 0) {
+    return 0;
+  }
   char* JSON = (char*)malloc((len + 1)* sizeof(char));
   strcpy(JSON, JSON_org);
   strip(JSON, '\n');
@@ -18,7 +21,7 @@ int parseJSON(char*** keys, char*** values, const char* JSON_org) {
   if (JSON[0] != '{' || JSON[len-1] != '}') {
     //printf("JSON not formatted properly\n");
     free(JSON);
-    return -1;
+    return 0;
   }
 
   uint32_t pair_nb = 0;
