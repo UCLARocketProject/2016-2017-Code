@@ -33,7 +33,7 @@
     echo "'mode' argument not found";
     exit(0);
   }
-  
+
   if (array_key_exists("db", $_REQUEST)) {
     $db = $_REQUEST["db"];
   } 
@@ -137,7 +137,7 @@
         $to_print .= $value . $endl;
       }
     }
-    echo substr($to_print, 0, strlen($to_print)-1); //drop trailing newline
+    echo substr($to_print, 0, strlen($line)-1); //drop trailing newline
   }
   mysqli_close($conn);
 ?>

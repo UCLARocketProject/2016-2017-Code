@@ -16,7 +16,18 @@
     <link href="css/bootstrap.min.css" rel="stylesheet">
     <style>
       body {
-        padding-top: 50px;
+        padding-top: 80px;
+      }
+      .btn-toggle {
+        color: white;
+        outline: none;
+      }
+      .btn-toggle.active {
+        background-color: grey !important;
+      }
+      .btn-toggle.active, .btn-toggle:active:focus, .btn-toggle.active:focus, .btn-toggle:hover, .btn-toggle:focus {
+        outline: none;
+        color: white;
       }
     </style>
 
@@ -31,36 +42,37 @@
         <div class="navbar-header">
           <a class="navbar-brand" href="/">Rockets Visualization</a>
         </div>
-        <div id="navbar">
-          <ul class="nav navbar-nav">
-            <li><a href="thermocouple.html">Thermocouple</a></li>
-            <li><a href="pins.html">Pins</a></li>
-            <li class="active"><a href="pt.html">Pressure Transducer</a></li>
-          </ul>
-        </div>
       </div>
     </nav>
 
     <div class="container-fluid">
-      <div class="row">
-        <div class="col-md-12 center-block">
-          <H1 style="text-align: center;"> Pressure Transducer Data </H1>
-        </div>
-      </div>
-      <div class="row">
-        <div class="col-md-2 center-block">
-          <p style="text-align: center;">Window Size (Seconds):</p>
-          <form style="text-align: center;" id="duration-input" onsubmit="return false;">
-            <input type="text" id="userInputDuration" />
-            <input type="submit" onclick="update_duration();" value="Update" />
-          </form>
-        </div>
-        <div class="col-md-10 center-block">
+      <div class="panel panel-default">
+        <div class="panel-body">
           <div id="graph" table="pt"></div>
+        </div>
+        <div class="panel-footer" id="line_info">
+          <div class="row">
+            <div class="col-md-3 col-md-offset-1">
+              <div class="input-group">
+                <span class="input-group-addon">Window: </span>
+                <input id="input_duration" type="text" class="form-control" value="10">
+                <span class="input-group-addon">s</span>
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="input-group">
+                <span class="input-group-addon">Time Delay: </span>
+                <input id="input_time_delay" type="text" class="form-control" value="0">
+                <span class="input-group-addon">s</span>
+              </div>
+            </div>
+            <div class="col-md-2">
+              <button id="update_values" type="button" class="btn btn-default">Update</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-
     <!-- Custom Visualization Code-->
     <!-- We must include the script after the DOM is finished being created-->
     <script src="js/visualization.js"></script>
