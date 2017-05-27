@@ -217,11 +217,11 @@ senderDie = False
 def sender():
         db = MySQLdb.connect(host="127.0.0.1", user="root", passwd="pinetree", db="testing")
         cursor = db.cursor()
-        sql = "CREATE TABLE IF NOT EXISTS thermocouple (abs_t DOUBLE, rel_t INT, " + tc1Name + " FLOAT, " + tc2Name + " FLOAT, " + tc3Name + " FLOAT, " + tc4Name + " FLOAT, " + tc5Name + " FLOAT)"
+        sql = "CREATE TABLE IF NOT EXISTS thermocouple (id int primary key not null auto_increment, abs_t DOUBLE, rel_t DOUBLE, " + tc1Name + " DOUBLE, " + tc2Name + " DOUBLE, " + tc3Name + " DOUBLE, " + tc4Name + " DOUBLE, " + tc5Name + " DOUBLE)"
         cursor.execute(sql)
         while not senderDie:
                 try:
-                        abs_t, rel_t, tmp1, tmp2, tmp3, tmp4, tmp5 = q.get(timeout=1)
+                        abs_t, rel_t, tmp1, tmp2, tmp3, tmp4, tmp5 = q.get(timeout=4)
                         print "%20s %20s %20s %20s %20s %20s %20s\n" % tempRead
                         sql = "INSERT INTO thermocouple (abs_t, rel_t, %s, %s, %s, %s, %s) VALUES ('%f', '%i', '%f', '%f', '%f', '%f', '%f')" % (tc1Name, tc2Name, tc3Name, tc4Name, tc5Name, abs_t, rel_t, tmp1, tmp2, tmp3, tmp4, tmp5)
                         try:
