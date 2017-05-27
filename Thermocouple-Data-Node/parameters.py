@@ -1,5 +1,5 @@
-tc1Name = "tcp1"
-tc2Name = "tcp2"
-tc3Name = "tcp3"
-tc4Name = "tcp4"
-tc5Name = "tcp5"
+tc1Name = "NitrousTankUpper"            #A
+tc2Name = "NitrousTankLower"            #B
+tc3Name = "CombustionChamberInjector"   #C
+tc4Name = "CombustionChamberBody"       #D
+tc5Name = "CombustionChamberNozzle"     #E
