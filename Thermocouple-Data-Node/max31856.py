@@ -28,6 +28,7 @@ from threading import Thread
 from multiprocessing import Queue
 import sys
 import MySQLdb
+from parameters import *
 
 class max31856(object):
 	"""Read Temperature on the Raspberry PI from the MAX31856 chip using GPIO
@@ -156,7 +157,7 @@ class max31856(object):
                 for i in range(5):
                         self.writeRegister(0, 0x42, i)
 		# conversion time is less than 150ms
-		time.sleep(.2) #give it 200ms for conversion
+		time.sleep(.05) #give it 200ms for conversion
 
 	def writeRegister(self, regNum, dataByte, csNum):
 		GPIO.output(self.csPins[csNum], GPIO.LOW)
@@ -214,15 +215,15 @@ q = Queue()
 senderDie = False
 
 def sender():
-        db = MySQLdb.connect(host="127.0.0.1", user="root", passwd="rockets", db="testing")
+        db = MySQLdb.connect(host="127.0.0.1", user="root", passwd="pinetree", db="testing")
         cursor = db.cursor()
-        sql = "CREATE TABLE IF NOT EXISTS thermocouples (abs_t DOUBLE, rel_t INT, tmp1 DOUBLE, tmp2 DOUBLE, tmp3 DOUBLE, tmp4 DOUBLE, tmp5 DOUBLE)"
+        sql = "CREATE TABLE IF NOT EXISTS thermocouple (abs_t DOUBLE, rel_t INT, " + tc1Name + " FLOAT, " + tc2Name + " FLOAT, " + tc3Name + " FLOAT, " + tc4Name + " FLOAT, " + tc5Name + " FLOAT)"
         cursor.execute(sql)
         while not senderDie:
                 try:
                         abs_t, rel_t, tmp1, tmp2, tmp3, tmp4, tmp5 = q.get(timeout=1)
                         print "%20s %20s %20s %20s %20s %20s %20s\n" % tempRead
-                        sql = "INSERT INTO thermocouples (abs_t, rel_t, tmp1, tmp2, tmp3, tmp4, tmp5) VALUES ('%f', '%i', '%f', '%f', '%f', '%f', '%f')" % (abs_t, rel_t, tmp1, tmp2, tmp3, tmp4, tmp5)
+                        sql = "INSERT INTO thermocouple (abs_t, rel_t, %s, %s, %s, %s, %s) VALUES ('%f', '%i', '%f', '%f', '%f', '%f', '%f')" % (tc1Name, tc2Name, tc3Name, tc4Name, tc5Name, abs_t, rel_t, tmp1, tmp2, tmp3, tmp4, tmp5)
                         try:
                                 cursor.execute(sql)
                                 db.commit()
@@ -237,6 +238,7 @@ def sender():
 if __name__ == "__main__":
 
 	import max31856
+  #V5 = 2, V3.3 = 17. G = 6, 9, 14
 	csPins = [11, 13, 15, 12, 16]
 	misoPin = 5
 	mosiPin = 7
